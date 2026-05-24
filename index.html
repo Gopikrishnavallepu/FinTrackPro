@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinTrack Pro</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f3ef; --surface: #fff; --surface2: #f9f8f5; --border: #e5e3dc; --border2: #d4d2ca;
+      --text: #1a1917; --text2: #6b6860; --text3: #9e9c96;
+      --green: #2d6a4f; --green-l: #e8f5ee; --red: #c0392b; --red-l: #fdf0ef;
+      --amber: #d97706; --amber-l: #fffbeb; --blue: #2563eb; --blue-l: #eff6ff;
+      --purple: #7c3aed; --purple-l: #f5f3ff; --orange: #e76f51; --orange-l: #fef0eb;
+      --shadow: 0 1px 3px rgba(0,0,0,.07); --r: 12px; --r2: 8px;
+      --font: 'DM Sans', sans-serif; --mono: 'DM Mono', monospace; --sw: 220px;
+    }
+
+    [data-theme=dark] {
+      --bg: #121210; --surface: #1e1d1b; --surface2: #252422; --border: #2e2d2a; --border2: #3a3936;
+      --text: #f0ede6; --text2: #9e9c96; --text3: #6b6860;
+      --green: #52b788; --green-l: #0d2018; --red: #e55039; --red-l: #2a0e0b;
+      --amber: #fbbf24; --amber-l: #2a1e02; --blue: #60a5fa; --blue-l: #0f1f3d;
+      --purple: #a78bfa; --purple-l: #1e1040; --orange: #f4845f; --orange-l: #2a1208;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; height: 100vh; overflow: hidden; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+
+    /* Layout Fixed for Scrolling */
+    .app { display: flex; height: 100vh; overflow: hidden; width: 100vw; }
+    .sidebar { width: var(--sw); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; height: 100vh; overflow-y: auto; flex-shrink: 0; z-index: 100; transition: transform .18s; }
+    .main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; overflow-x: hidden; position: relative; }
+    
+    .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; gap: 10px; }
+    .content { padding: 20px; max-width: 1400px; width: 100%; margin: 0 auto; flex: 1; }
+
+    /* Sidebar */
+    .logo { padding: 18px 16px 14px; border-bottom: 1px solid var(--border); }
+    .logo-text { font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
+    .logo-sub { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+    .nav { padding: 10px 6px; flex: 1; }
+    .nav-sec { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .8px; padding: 12px 8px 4px; }
+    .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r2); cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 500; transition: .15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--green-l); color: var(--green); }
+    .ni { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; background: var(--surface2); }
+    .nav-item.active .ni { background: var(--green); color: #fff; }
+    .sf { padding: 12px 6px; border-top: 1px solid var(--border); }
+    .ts { width: 36px; height: 20px; background: var(--border2); border-radius: 10px; cursor: pointer; border: none; position: relative; transition: .15s; }
+    .ts.on { background: var(--green); }
+    .tk { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: .15s; }
+    .ts.on .tk { transform: translateX(16px); }
+
+    /* Topbar */
+    .tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .edit-toggle { display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: var(--r2); border: 2px solid var(--border2); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 600; transition: .15s; color: var(--text2); }
+    .edit-toggle.on { border-color: var(--amber); background: var(--amber-l); color: var(--amber); }
+    .edit-toggle .et-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); transition: .15s; }
+    .edit-toggle.on .et-dot { background: var(--amber); }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 13px; border-radius: var(--r2); border: 1px solid var(--border2); background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 500; cursor: pointer; transition: .15s; font-family: var(--font); white-space: nowrap; }
+    .btn:hover { background: var(--surface2); }
+    .btn-primary { background: var(--green); color: #fff; border-color: var(--green); } .btn-primary:hover { filter: brightness(1.08); }
+    .btn-red { background: var(--red); color: #fff; border-color: var(--red); } .btn-red:hover { filter: brightness(1.08); }
+    .btn-amber { background: var(--amber); color: #fff; border-color: var(--amber); } .btn-amber:hover { filter: brightness(1.08); }
+    .btn-blue { background: var(--blue); color: #fff; border-color: var(--blue); } .btn-blue:hover { filter: brightness(1.08); }
+    .btn-ghost { background: transparent; border-color: transparent; color: var(--text2); padding: 5px 8px; } .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .btn-icon { width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 13px; }
+    .btn-del { background: var(--red-l); color: var(--red); border-color: transparent; } .btn-del:hover { background: var(--red); color: #fff; }
+    .btn-add { background: var(--green-l); color: var(--green); border-color: transparent; } .btn-add:hover { background: var(--green); color: #fff; }
+
+    /* Badge */
+    .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .bg { background: var(--green-l); color: var(--green); } .br { background: var(--red-l); color: var(--red); }
+    .ba { background: var(--amber-l); color: var(--amber); } .bb { background: var(--blue-l); color: var(--blue); }
+    .bp { background: var(--purple-l); color: var(--purple); } .bo { background: var(--orange-l); color: var(--orange); }
+
+    /* KPI */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow); }
+    .kpi-lbl { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .kpi-val { font-size: 22px; font-weight: 600; letter-spacing: -.5px; font-family: var(--mono); }
+    .kpi-val.g { color: var(--green); } .kpi-val.r { color: var(--red); } .kpi-val.a { color: var(--amber); } .kpi-val.b { color: var(--blue); } .kpi-val.p { color: var(--purple); }
+    .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+    /* Card */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 16px; }
+    .ch { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .ct { font-size: 13.5px; font-weight: 600; }
+    .cb { padding: 16px; }
+    
+    /* Fixed height canvas wrapper to stop infinite flex growth */
+    .chart-wrap { position: relative; width: 100%; height: 220px; }
+    .chart-wrap.small { height: 180px; }
+    
+    .cf { padding: 10px 16px; border-top: 1px solid var(--border); background: var(--surface2); }
+    .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .grid21 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+
+    /* Table */
+    .tw { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 9px 11px; font-size: 10.5px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); background: var(--surface2); white-space: nowrap; }
+    td { padding: 10px 11px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+    .tr { text-align: right; font-family: var(--mono); } .tc { text-align: center; }
+
+    /* Editable cells */
+    .ecell { background: transparent; border: none; color: var(--text); font-family: var(--mono); font-size: 13px; width: 100%; outline: none; text-align: right; min-width: 40px; }
+    .ecell-text { background: transparent; border: none; color: var(--text); font-family: var(--font); font-size: 13px; width: 100%; outline: none; }
+    .edit-mode .ecell, .edit-mode .ecell-text { background: var(--amber-l); border-bottom: 1.5px solid var(--amber); border-radius: 3px; padding: 2px 5px; }
+    .edit-mode .ecell:focus, .edit-mode .ecell-text:focus { border-color: var(--blue); background: var(--blue-l); }
+    select.ecell-text { cursor: pointer; }
+
+    /* Progress */
+    .pbar { height: 6px; background: var(--surface2); border-radius: 10px; overflow: hidden; min-width: 80px; }
+    .pfill { height: 100%; border-radius: 10px; transition: width .6s; }
+    .pfill.g { background: var(--green); } .pfill.r { background: var(--red); } .pfill.a { background: var(--amber); } .pfill.b { background: var(--blue); }
+
+    /* Form */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .modal { background: var(--surface); border-radius: var(--r); width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    .mh { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .mh-title { font-size: 15px; font-weight: 600; }
+    .mb { padding: 20px; }
+    .mf { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+    .form-row { margin-bottom: 14px; width: 100%; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: .4px; }
+    .form-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--r2); background: var(--surface); color: var(--text); font-size: 13.5px; font-family: var(--font); outline: none; transition: .15s; }
+    .form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Reminder */
+    .rem { padding: 10px 13px; border-left: 3px solid var(--border2); border-radius: 0 var(--r2) var(--r2) 0; background: var(--surface2); margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .rem.ur { border-color: var(--red); background: var(--red-l); }
+    .rem.so { border-color: var(--amber); background: var(--amber-l); }
+    .rem.ok { border-color: var(--green); background: var(--green-l); }
+
+    /* Page */
+    .page { display: none; } .page.active { display: block; }
+
+    /* Mini stat */
+    .ms { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .ms:last-child { border-bottom: none; }
+    .ms-l { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+    .ms-v { font-size: 13px; font-weight: 600; font-family: var(--mono); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* Category pill */
+    .cat-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; background: var(--surface2); border-radius: var(--r2); padding: 3px; width: fit-content; }
+    .tab { padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 500; cursor: pointer; color: var(--text2); border: none; background: none; font-family: var(--font); transition: .15s; }
+    .tab.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+    /* Paid badge */
+    .paid-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; transition: .15s; }
+    .paid-badge.paid { background: var(--green-l); color: var(--green); } .paid-badge.unpaid { background: var(--red-l); color: var(--red); }
+
+    /* Hamburger */
+    .ham { display: none; width: 32px; height: 32px; border: 1px solid var(--border); background: var(--surface); border-radius: var(--r2); cursor: pointer; align-items: center; justify-content: center; color: var(--text); }
+    .sov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 90; }
+
+    @media(max-width: 900px) {
+      .sidebar { position: fixed; transform: translateX(-100%); z-index: 200; } 
+      .sidebar.open { transform: none; }
+      .sov.show { display: block; z-index: 150; } 
+      .ham { display: flex; }
+      .grid2, .grid21 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; }
+      .content { padding: 14px; } .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media(max-width: 480px) { .kpi-val { font-size: 17px; } .topbar { padding: 10px 12px; } }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .kpi { animation: fadeUp .35s ease both; }
+    .kpi:nth-child(1) { animation-delay: .05s; } .kpi:nth-child(2) { animation-delay: .1s; }
+    .kpi:nth-child(3) { animation-delay: .15s; } .kpi:nth-child(4) { animation-delay: .2s; } .kpi:nth-child(5) { animation-delay: .25s; }
+
+    /* Tenure timeline */
+    .tenure-bar { display: flex; height: 10px; border-radius: 10px; overflow: hidden; background: var(--surface2); margin: 4px 0; }
+    .tenure-paid { background: var(--green); transition: width .6s; }
+
+    /* Closed loan */
+    tr.closed td, .loan-row.closed { opacity: .5; text-decoration: none; }
+    .loan-row.closed .ln { text-decoration: line-through; }
+
+    /* Category chip select */
+    .chip-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .chip { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); background: var(--surface); color: var(--text2); transition: .15s; }
+    .chip.sel { border-color: var(--green); background: var(--green-l); color: var(--green); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="logo">
+        <div class="logo-text">💰 FinTrack Pro</div>
+        <div class="logo-sub">Personal Finance OS</div>
+      </div>
+      <nav class="nav">
+        <div class="nav-sec">Overview</div>
+        <button class="nav-item active" onclick="nav('dashboard',this)"><span class="ni">📊</span>Dashboard</button>
+        <div class="nav-sec">Modules</div>
+        <button class="nav-item" onclick="nav('expenses',this)"><span class="ni">🧾</span>Expenses</button>
+        <button class="nav-item" onclick="nav('budget',this)"><span class="ni">📋</span>Budget</button>
+        <button class="nav-item" onclick="nav('loans',this)"><span class="ni">🏦</span>Loans / EMI</button>
+        <button class="nav-item" onclick="nav('investments',this)"><span class="ni">📈</span>Investments</button>
+        <div class="nav-sec">Tools & Config</div>
+        <button class="nav-item" onclick="nav('settings',this)"><span class="ni">⚙️</span>Settings</button>
+        <button class="nav-item" onclick="exportXL()"><span class="ni">⬇️</span>Export Excel</button>
+      </nav>
+      <div class="sf">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px">
+          <span style="font-size:12px;color:var(--text2)">Dark mode</span>
+          <button class="ts" id="ts" onclick="toggleTheme()"><div class="tk"></div></button>
+        </div>
+      </div>
+    </div>
+    <div class="sov" id="sov" onclick="closeSidebar()"></div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="ham" onclick="toggleSidebar()">☰</button>
+          <span style="font-size:15px;font-weight:600" id="ptitle">Dashboard</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:var(--green-l);color:var(--green);font-size:11.5px;font-weight:500" id="mperiod">May 2026</span>
+        </div>
+        <div class="tb-right">
+          <button class="edit-toggle" id="editToggle" onclick="toggleEdit()">
+            <div class="et-dot"></div><span id="editLabel">Edit OFF</span>
+          </button>
+          <!-- Changed to dynamic native Month/Year input -->
+          <input type="month" id="gmsel" onchange="setPeriod(this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--r2);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;cursor:pointer;">
+          <button class="btn btn-primary" onclick="exportXL()" style="font-size:12px">⬇ Excel</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- ═══ DASHBOARD ═══ -->
+        <div class="page active" id="page-dashboard">
+          <div class="kpi-grid" id="dash-kpis"></div>
+          <div class="grid21" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ch"><span class="ct">Monthly Cashflow</span></div>
+              <div class="cb" style="padding:12px"><div class="chart-wrap"><canvas id="cfChart"></canvas></div></div>
+            </div>
+            <div class="card">
+              <div class="ch"><span class="ct">Expense Breakdown</span></div>
+              <div class="cb">
+                <div class="chart-wrap small"><canvas id="doChart"></canvas></div>
+                <div id="doLegend" style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:3px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="grid3">
+            <div class="card">
+              <div class="ch"><span class="ct">Top Priority Loans</span></div>
+              <div class="cb" style="padding-top:8px" id="dashLoans"></div>
+              <div class="cf" id="dashDebt"></div>
+            </div>
+            <div class="card">
+              <div class="ch"><span class="ct">Investments</span></div>
+              <div class="cb" style="padding-top:8px" id="dashInv"></div>
+            </div>
+            <div class="card">
+              <div class="ch"><span class="ct">Upcoming EMIs</span></div>
+              <div class="cb" style="padding:10px" id="dashRem"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ EXPENSES ═══ -->
+        <div class="page" id="page-expenses">
+          <div class="kpi-grid" id="exp-kpis"></div>
+          <div class="grid2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ch"><span class="ct">By Category</span></div>
+              <div class="cb" style="padding:12px"><div class="chart-wrap"><canvas id="catChart"></canvas></div></div>
+            </div>
+            <div class="card">
+              <div class="ch"><span class="ct">Monthly Trend (Trailing 5 Mo)</span></div>
+              <div class="cb" style="padding:12px"><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch">
+              <span class="ct">All Transactions</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <select id="ef-cat" onchange="renderExpTable()" style="padding:6px;border:1px solid var(--border);border-radius:var(--r2);background:var(--surface);color:var(--text);font-size:12px">
+                  <option value="">All categories</option>
+                </select>
+                <input id="ef-q" placeholder="Search…" oninput="renderExpTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r2);background:var(--surface);color:var(--text);font-size:12px;width:130px;outline:none">
+                <button class="btn btn-primary btn-icon btn-add" onclick="openExpModal()" title="Add expense">＋</button>
+              </div>
+            </div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th>Description</th><th>Category</th><th class="tr">Amount (₹)</th><th>Type</th><th>Note</th><th class="tc">Action</th></tr>
+                </thead>
+                <tbody id="expBody"></tbody>
+              </table>
+            </div>
+            <div class="cf" id="expFoot"></div>
+          </div>
+        </div>
+
+        <!-- ═══ BUDGET ═══ -->
+        <div class="page" id="page-budget">
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:14px;">
+            <div class="tabs" style="box-shadow:var(--shadow)">
+              <button class="tab active" id="bud-mo-btn" onclick="setBudgetView('monthly')">Monthly Tracker</button>
+              <button class="tab" id="bud-yr-btn" onclick="setBudgetView('yearly')">Yearly Overview</button>
+            </div>
+          </div>
+          
+          <div class="kpi-grid" id="bud-kpis"></div>
+          <div class="grid2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ch"><span class="ct" id="bvaChartTitle">Budget vs Actual</span></div>
+              <div class="cb" style="padding:12px"><div class="chart-wrap"><canvas id="bvaChart"></canvas></div></div>
+            </div>
+            <div class="card">
+              <div class="ch"><span class="ct">Category Tracker</span></div>
+              <div class="cb" id="bvaBars"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch">
+              <span class="ct" id="budPlannerTitle">Monthly Budget Planner</span>
+              <button class="btn btn-add" onclick="openBudModal()">＋ Add Category</button>
+            </div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr><th>Category</th><th class="tr">Budget (₹)</th><th class="tr">Actual (₹)</th><th class="tr">Variance</th><th>Status</th><th>% Used</th><th class="tc">Action</th></tr>
+                </thead>
+                <tbody id="budBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ LOANS ═══ -->
+        <div class="page" id="page-loans">
+          <div class="kpi-grid" id="loan-kpis"></div>
+          
+          <div class="grid2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ch"><span class="ct">Principal vs Interest (Avalanche order)</span></div>
+              <div class="cb" style="padding:12px"><div class="chart-wrap"><canvas id="piChart"></canvas></div></div>
+            </div>
+            <div class="card">
+              <div class="ch" style="padding-bottom:5px">
+                <span class="ct">Debt Paydown Projection</span>
+                <div class="tabs" style="padding:2px">
+                  <button class="tab active" id="debt-mo-btn" onclick="setDebtView('monthly')" style="padding:4px 10px; font-size:11px">Monthly</button>
+                  <button class="tab" id="debt-yr-btn" onclick="setDebtView('yearly')" style="padding:4px 10px; font-size:11px">Yearly</button>
+                </div>
+              </div>
+              <div class="cb" style="padding:12px"><div class="chart-wrap"><canvas id="debtTrendChart"></canvas></div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="ch"><span class="ct">Upcoming EMIs</span></div>
+            <div class="cb" style="padding:10px" id="emiCal"></div>
+          </div>
+
+          <div class="card">
+            <div class="ch">
+              <span class="ct">Loan Tracker — Tenure & Closure</span>
+              <div style="display:flex;gap:8px">
+                <div class="tabs">
+                  <button class="tab active" onclick="loanTab('active',this)">Active</button>
+                  <button class="tab" onclick="loanTab('closed',this)">Closed</button>
+                  <button class="tab" onclick="loanTab('all',this)">All</button>
+                </div>
+                <button class="btn btn-add" onclick="openLoanModal()">＋ Add Loan</button>
+              </div>
+            </div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr><th>#</th><th>Loan Name & Bank</th><th class="tr">Principal</th><th>Rate %</th>
+                    <th class="tr">EMI/mo</th><th>Due Date</th><th>Tenure</th><th>Progress</th>
+                    <th class="tr">Paid</th><th class="tr">Remaining</th><th>Status</th><th class="tc">Actions</th></tr>
+                </thead>
+                <tbody id="loanBody"></tbody>
+              </table>
+            </div>
+            <div class="cf" id="loanFoot"></div>
+          </div>
+        </div>
+
+        <!-- ═══ INVESTMENTS ═══ -->
+        <div class="page" id="page-investments">
+          <div class="kpi-grid" id="inv-kpis"></div>
+          <div class="grid2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ch"><span class="ct">Portfolio Growth</span></div>
+              <div class="cb" style="padding:12px"><div class="chart-wrap"><canvas id="portChart"></canvas></div></div>
+            </div>
+            <div class="card">
+              <div class="ch"><span class="ct">Allocation</span></div>
+              <div class="cb">
+                <div class="chart-wrap small"><canvas id="allocChart"></canvas></div>
+                <div id="allocLeg" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch">
+              <span class="ct">Holdings — P&L</span>
+              <button class="btn btn-add" onclick="openInvModal()">＋ Add Investment</button>
+            </div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr><th>Name</th><th>Type</th><th class="tr">Invested (₹)</th><th class="tr">Value (₹)</th>
+                    <th class="tr">P&L (₹)</th><th class="tr">Return %</th><th>Progress</th><th class="tc">Actions</th></tr>
+                </thead>
+                <tbody id="invBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card" style="margin-top:0">
+            <div class="ch"><span class="ct">Investment Phase Plan</span></div>
+            <div class="cb" id="invPhases"></div>
+          </div>
+        </div>
+
+        <!-- ═══ SETTINGS ═══ -->
+        <div class="page" id="page-settings">
+          <div class="grid2" style="margin-bottom:14px">
+            <div class="card">
+              <div class="ch"><span class="ct">Global Configuration</span></div>
+              <div class="cb">
+                <div class="form-row">
+                  <label class="form-label">Monthly Net Salary (₹)</label>
+                  <input type="number" id="set-salary" class="form-input" onchange="appSettings.salary=+this.value;renderAll()">
+                  <div class="form-hint">Used for surplus calculations across Dashboard & Budget</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="ch"><span class="ct">Data Management</span></div>
+              <div class="cb" style="display:flex; flex-direction:column; gap:10px;">
+                <p style="font-size:12px; color:var(--text2);">Permanently remove all user data including loans, expenses, budgets, and investments to start fresh.</p>
+                <button class="btn btn-red" style="width:fit-content" onclick="clearAllData()">⚠️ Clear All Data</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch"><span class="ct">Investment Phase Plans Configuration</span></div>
+            <div class="cb" id="set-phases-container"></div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /app -->
+
+  <!-- ═══ MODALS ═══ -->
+  <!-- Expense Modal -->
+  <div class="overlay" id="expModal" style="display:none">
+    <div class="modal">
+      <div class="mh">
+        <span class="mh-title" id="expModalTitle">Add Expense</span>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('expModal')">✕</button>
+      </div>
+      <div class="mb">
+        <div class="form-row">
+          <label class="form-label">Date</label>
+          <input type="date" id="ef-date" class="form-input">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Description</label>
+          <input type="text" id="ef-desc" placeholder="e.g. BigBazaar groceries" class="form-input">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Category</label>
+          <div class="chip-group" id="catChips"></div>
+        </div>
+        <div class="form-grid2">
+          <div class="form-row">
+            <label class="form-label">Amount (₹)</label>
+            <input type="number" id="ef-amt" placeholder="0" class="form-input">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Type</label>
+            <select id="ef-type" class="form-input">
+              <option>Fixed</option><option>Variable</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Note (optional)</label>
+          <input type="text" id="ef-note" placeholder="Any additional note" class="form-input">
+        </div>
+      </div>
+      <div class="mf">
+        <button class="btn" onclick="closeModal('expModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveExp()">Save Expense</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loan Modal -->
+  <div class="overlay" id="loanModal" style="display:none">
+    <div class="modal">
+      <div class="mh">
+        <span class="mh-title" id="loanModalTitle">Add Loan / EMI</span>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('loanModal')">✕</button>
+      </div>
+      <div class="mb">
+        <div class="form-row">
+          <label class="form-label">Loan Name</label>
+          <input type="text" id="lf-name" placeholder="e.g. Personal Loan" class="form-input">
+        </div>
+        <div class="form-grid2">
+          <div class="form-row">
+            <label class="form-label">Principal (₹)</label>
+            <input type="number" id="lf-principal" class="form-input">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Interest Rate (% p.a.)</label>
+            <input type="number" id="lf-rate" step="0.01" class="form-input">
+          </div>
+        </div>
+        <div class="form-grid2">
+          <div class="form-row">
+            <label class="form-label">EMI / Month (₹)</label>
+            <input type="number" id="lf-emi" class="form-input">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Total Tenure (months)</label>
+            <input type="number" id="lf-tenure" class="form-input">
+          </div>
+        </div>
+        <div class="form-grid2">
+          <div class="form-row">
+            <label class="form-label">Months Paid</label>
+            <input type="number" id="lf-paid" value="0" class="form-input">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Due Date (day of month)</label>
+            <input type="number" id="lf-due" min="1" max="31" placeholder="e.g. 15" class="form-input">
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Lender / Bank</label>
+          <input type="text" id="lf-bank" placeholder="e.g. HDFC Bank" class="form-input">
+        </div>
+      </div>
+      <div class="mf">
+        <button class="btn" onclick="closeModal('loanModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveLoan()">Save Loan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget Category Modal -->
+  <div class="overlay" id="budModal" style="display:none">
+    <div class="modal">
+      <div class="mh">
+        <span class="mh-title">Add Budget Category</span>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('budModal')">✕</button>
+      </div>
+      <div class="mb">
+        <div class="form-row">
+          <label class="form-label">Category Name</label>
+          <input type="text" id="bf-cat" placeholder="e.g. Entertainment" class="form-input">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Monthly Budget (₹)</label>
+          <input type="number" id="bf-bud" class="form-input">
+        </div>
+      </div>
+      <div class="mf">
+        <button class="btn" onclick="closeModal('budModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveBudCat()">Add Category</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Investment Modal -->
+  <div class="overlay" id="invModal" style="display:none">
+    <div class="modal">
+      <div class="mh">
+        <span class="mh-title">Add Investment</span>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal('invModal')">✕</button>
+      </div>
+      <div class="mb">
+        <div class="form-row">
+          <label class="form-label">Investment Name</label>
+          <input type="text" id="if-name" placeholder="e.g. SIP — Nifty 50" class="form-input">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Type</label>
+          <select id="if-type" class="form-input">
+            <option>Equity MF</option><option>Debt MF</option><option>Govt Scheme</option>
+            <option>Bank FD</option><option>Stocks</option><option>Gold</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-grid2">
+          <div class="form-row">
+            <label class="form-label">Invested (₹)</label>
+            <input type="number" id="if-inv" class="form-input">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Current Value (₹)</label>
+            <input type="number" id="if-cur" class="form-input">
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Monthly SIP (₹, 0 if one-time)</label>
+          <input type="number" id="if-sip" value="0" class="form-input">
+        </div>
+      </div>
+      <div class="mf">
+        <button class="btn" onclick="closeModal('invModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveInv()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── STATE & CONFIGURATION ───────────────────────────────────────────────────
+    let editMode = false, dark = false, loanFilter = 'active';
+    let curPeriod = '2026-05'; 
+    let budgetView = 'monthly'; // 'monthly' or 'yearly'
+    let debtView = 'monthly'; // 'monthly' or 'yearly'
+    let editingExp = -1, editingLoan = -1, selCat = '';
+
+    // Set initial input month
+    document.getElementById('gmsel').value = curPeriod;
+
+    // Global App Configuration 
+    let appSettings = {
+      salary: 48000,
+      phases: [
+        { title: 'Phase 1 — Now (Mo 1–6)', desc: 'SIP ₹500 · SSY ₹500 · Emergency ₹500', amount: 1500, active: true },
+        { title: 'Phase 2 — Grow (Mo 7–18)', desc: 'SIP ₹1,500 · SSY ₹1,000 · EF ₹500', amount: 3000, active: false },
+        { title: 'Phase 3 — Wealth (Mo 19+)', desc: 'Nifty + MidCap + ELSS + Gold SGB', amount: 8000, active: false }
+      ]
+    };
+
+    const salary = () => appSettings.salary;
+
+    const CAT_COLORS = {
+      Rent: '#2d6a4f', Food: '#e76f51', Travel: '#2563eb', Baby: '#7c3aed',
+      Personal: '#d97706', Misc: '#9e9c96', Investments: '#52b788',
+      Loan: '#c0392b', Medical: '#0891b2', Education: '#7c3aed', Shopping: '#e76f51',
+      Entertainment: '#f59e0b', Utilities: '#6b7280'
+    };
+
+    function catColor(c) {
+      return CAT_COLORS[c] || '#' + Math.abs(c.split('').reduce((a, b) => a + b.charCodeAt(0), 0) * 2654435761 % 16777216).toString(16).padStart(6, '0');
+    }
+
+    let expenses = [
+      { id: 1, date: '2026-05-01', desc: 'House Rent', cat: 'Rent', amount: 8000, type: 'Fixed', note: '' },
+      { id: 2, date: '2026-05-02', desc: 'Groceries — BigBazaar', cat: 'Food', amount: 2200, type: 'Fixed', note: '' },
+      { id: 3, date: '2026-05-03', desc: 'Auto & petrol', cat: 'Travel', amount: 1200, type: 'Variable', note: '' },
+      { id: 4, date: '2026-05-04', desc: 'Baby medicines', cat: 'Baby', amount: 850, type: 'Variable', note: 'Doctor prescribed' },
+      { id: 5, date: '2026-05-05', desc: 'Swiggy order', cat: 'Food', amount: 480, type: 'Variable', note: '' },
+      { id: 6, date: '2026-05-07', desc: 'Bus pass', cat: 'Travel', amount: 400, type: 'Fixed', note: '' },
+      { id: 7, date: '2026-05-08', desc: 'Baby diapers', cat: 'Baby', amount: 750, type: 'Fixed', note: '' },
+      { id: 8, date: '2026-05-09', desc: 'Mobile recharge', cat: 'Personal', amount: 399, type: 'Fixed', note: 'Airtel' },
+      { id: 9, date: '2026-05-10', desc: 'Zomato', cat: 'Food', amount: 320, type: 'Variable', note: '' },
+      { id: 10, date: '2026-05-12', desc: 'Baby school fee', cat: 'Baby', amount: 1200, type: 'Fixed', note: '' },
+      { id: 11, date: '2026-05-13', desc: 'Clothing — Myntra', cat: 'Shopping', amount: 1200, type: 'Variable', note: 'Sale offer' },
+      { id: 12, date: '2026-05-14', desc: 'Electricity bill', cat: 'Utilities', amount: 1800, type: 'Fixed', note: 'APSPDCL' },
+      { id: 13, date: '2026-05-15', desc: 'Groceries', cat: 'Food', amount: 980, type: 'Variable', note: '' },
+      { id: 14, date: '2026-05-17', desc: 'Petrol', cat: 'Travel', amount: 600, type: 'Variable', note: '' },
+      { id: 15, date: '2026-05-19', desc: 'Snacks & drinks', cat: 'Food', amount: 350, type: 'Variable', note: '' },
+      { id: 16, date: '2026-05-21', desc: 'DTH recharge', cat: 'Utilities', amount: 350, type: 'Fixed', note: '' },
+      { id: 17, date: '2026-05-22', desc: 'Restaurant', cat: 'Food', amount: 850, type: 'Variable', note: 'Family outing' },
+      { id: 18, date: '2026-05-24', desc: 'Miscellaneous', cat: 'Misc', amount: 2000, type: 'Variable', note: '' },
+      { id: 19, date: '2026-05-26', desc: 'Medicine', cat: 'Medical', amount: 351, type: 'Variable', note: '' },
+      { id: 20, date: '2026-05-29', desc: 'Internet bill', cat: 'Utilities', amount: 699, type: 'Fixed', note: 'ACT Fibernet' },
+      { id: 21, date: '2026-05-30', desc: 'Misc household', cat: 'Misc', amount: 1901, type: 'Variable', note: '' },
+      { id: 22, date: '2026-04-10', desc: 'Previous month test', cat: 'Food', amount: 2500, type: 'Variable', note: '' },
+      { id: 23, date: '2026-03-15', desc: 'March test', cat: 'Rent', amount: 8000, type: 'Fixed', note: '' }
+    ];
+    let nextExpId = 100;
+
+    let loans = [
+      { id: 1, name: 'Fibe', principal: 33329, rate: 23.55, emi: 6249, tenure: 6, paid: 1, due: 15, bank: 'Fibe App', closed: false },
+      { id: 2, name: 'J CC Emi', principal: 29277, rate: 23.4, emi: 6250, tenure: 6, paid: 1, due: 18, bank: 'HDFC', closed: false },
+      { id: 3, name: 'CC EMI Rep N', principal: 45279, rate: 22.44, emi: 3955, tenure: 13, paid: 2, due: 5, bank: 'ICICI', closed: false },
+      { id: 4, name: 'J Loan', principal: 85000, rate: 21.0, emi: 7915, tenure: 12, paid: 2, due: 10, bank: 'Jupiter', closed: false },
+      { id: 5, name: 'Big Loan', principal: 287000, rate: 16.99, emi: 10231, tenure: 36, paid: 3, due: 28, bank: 'SBI', closed: false },
+      { id: 6, name: 'Personal Loan', principal: 88963, rate: 14.87, emi: 6920, tenure: 18, paid: 3, due: 25, bank: 'HDFC', closed: false },
+      { id: 7, name: 'Jumbo Loan', principal: 85432, rate: 11.88, emi: 4729, tenure: 20, paid: 4, due: 3, bank: 'Axis', closed: false },
+      { id: 8, name: 'Jumbo (2)', principal: 7819, rate: 13.8, emi: 3977, tenure: 2, paid: 0, due: 7, bank: 'Axis', closed: false },
+      { id: 9, name: 'Gold Loan', principal: 80000, rate: 8.0, emi: 3000, tenure: 24, paid: 5, due: 22, bank: 'Manappuram', closed: false },
+    ];
+    let nextLoanId = 100;
+
+    let budgets = [
+      { id: 1, cat: 'Rent', budget: 8000 }, { id: 2, cat: 'Food', budget: 5000 }, { id: 3, cat: 'Travel', budget: 3000 },
+      { id: 4, cat: 'Baby', budget: 3000 }, { id: 5, cat: 'Personal', budget: 2000 }, { id: 6, cat: 'Misc', budget: 2000 },
+      { id: 7, cat: 'Investments', budget: 1500 }, { id: 8, cat: 'Medical', budget: 500 }, { id: 9, cat: 'Utilities', budget: 1000 }
+    ];
+    let nextBudId = 100;
+
+    let investments = [
+      { id: 1, name: 'SIP — Nifty 50', type: 'Equity MF', invested: 3000, current: 3320, sip: 500 },
+      { id: 2, name: 'SSY', type: 'Govt Scheme', invested: 3000, current: 3246, sip: 500 },
+      { id: 3, name: 'Emergency FD', type: 'Bank FD', invested: 3000, current: 3098, sip: 500 },
+    ];
+    let nextInvId = 100;
+
+    // ─── HELPERS ─────────────────────────────────────────────────────────────────
+    const inr = n => '₹' + (+n || 0).toLocaleString('en-IN');
+    const periodExps = () => expenses.filter(e => e.date.startsWith(curPeriod));
+    const allCats = () => [...new Set([...budgets.map(b => b.cat), ...expenses.map(e => e.cat)])].filter(Boolean);
+    
+    // Calculates dynamic past 5 months based on currently selected curPeriod
+    const getDynamicMonths = () => {
+      const res = [];
+      const labels = [];
+      let [y, m] = curPeriod.split('-').map(Number);
+      for(let i=4; i>=0; i--){
+         let d = new Date(y, m-1-i, 1);
+         res.push(`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`);
+         labels.push(d.toLocaleString('en-US',{month:'short'})+" '"+d.getFullYear().toString().substr(-2));
+      }
+      return { vals: res, labels: labels };
+    };
+
+    const totalEMI = () => loans.filter(l => !l.closed).reduce((s, l) => s + l.emi, 0);
+    const totalDebt = () => loans.filter(l => !l.closed).reduce((s, l) => s + l.principal, 0);
+    const totalInvested = () => investments.reduce((s, i) => s + i.invested, 0);
+    const totalValue = () => investments.reduce((s, i) => s + i.current, 0);
+
+    // ─── UTILITIES & DESTRUCTIVE ────────────────────────────────────────────────
+    function clearAllData() {
+      if(confirm('Are you absolutely sure you want to clear all data? This cannot be undone.')) {
+        expenses = []; budgets = []; loans = []; investments = [];
+        renderAll();
+      }
+    }
+
+    function setBudgetView(v) {
+      budgetView = v;
+      document.getElementById('bud-mo-btn').classList.toggle('active', v==='monthly');
+      document.getElementById('bud-yr-btn').classList.toggle('active', v==='yearly');
+      renderAll();
+    }
+
+    function setDebtView(v) {
+      debtView = v;
+      document.getElementById('debt-mo-btn').classList.toggle('active', v==='monthly');
+      document.getElementById('debt-yr-btn').classList.toggle('active', v==='yearly');
+      rebuildCharts();
+    }
+
+    // ─── EDIT MODE ───────────────────────────────────────────────────────────────
+    function toggleEdit() {
+      editMode = !editMode;
+      document.getElementById('editToggle').classList.toggle('on', editMode);
+      document.getElementById('editLabel').textContent = editMode ? 'Edit ON' : 'Edit OFF';
+      document.body.classList.toggle('edit-mode', editMode);
+      renderAll();
+    }
+
+    // ─── NAVIGATION ──────────────────────────────────────────────────────────────
+    function nav(page, el) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-' + page).classList.add('active');
+      if (el) el.classList.add('active');
+      const titles = { dashboard: 'Dashboard', expenses: 'Expense Tracker', budget: 'Budget Tracker', loans: 'Loans / EMI Tracker', investments: 'Investment Tracker', settings: 'Settings & Config' };
+      document.getElementById('ptitle').textContent = titles[page] || page;
+      closeSidebar();
+      renderAll(); 
+    }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sov').classList.toggle('show'); }
+    function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sov').classList.remove('show'); }
+    function toggleTheme() { dark = !dark; document.documentElement.setAttribute('data-theme', dark ? 'dark' : ''); document.getElementById('ts').classList.toggle('on', dark); rebuildCharts(); }
+    
+    function setPeriod(v) { 
+      if(!v) return;
+      curPeriod = v; 
+      const d = new Date(v + '-01'); 
+      document.getElementById('mperiod').textContent = d.toLocaleString('en-IN', { month: 'long', year: 'numeric' }); 
+      renderAll(); 
+    }
+
+    // ─── MODALS ──────────────────────────────────────────────────────────────────
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+
+    function openExpModal(idx = -1) {
+      editingExp = idx;
+      const e = idx >= 0 ? expenses[idx] : null;
+      document.getElementById('expModalTitle').textContent = idx >= 0 ? 'Edit Expense' : 'Add Expense';
+      document.getElementById('ef-date').value = e ? e.date : curPeriod + '-01';
+      document.getElementById('ef-desc').value = e ? e.desc : '';
+      document.getElementById('ef-amt').value = e ? e.amount : '';
+      document.getElementById('ef-type').value = e ? e.type : 'Variable';
+      document.getElementById('ef-note').value = e ? e.note : '';
+      selCat = e ? e.cat : '';
+      buildCatChips();
+      openModal('expModal');
+    }
+    function buildCatChips() {
+      const cats = ['Rent', 'Food', 'Travel', 'Baby', 'Personal', 'Misc', 'Medical', 'Utilities', 'Shopping', 'Entertainment', 'Education', 'Loan', 'Other'];
+      document.getElementById('catChips').innerHTML = cats.map(c => `<button class="chip ${selCat === c ? 'sel' : ''}" onclick="selCat='${c}';buildCatChips()">${c}</button>`).join('');
+    }
+    function saveExp() {
+      const date = document.getElementById('ef-date').value;
+      const desc = document.getElementById('ef-desc').value.trim();
+      const amount = parseFloat(document.getElementById('ef-amt').value);
+      const type = document.getElementById('ef-type').value;
+      const note = document.getElementById('ef-note').value.trim();
+      if (!desc || isNaN(amount) || !selCat) { alert('Please fill date, description, category and valid amount.'); return; }
+      
+      if (editingExp >= 0) {
+        Object.assign(expenses[editingExp], { date, desc, cat: selCat, amount, type, note });
+      } else {
+        expenses.push({ id: nextExpId++, date, desc, cat: selCat, amount, type, note });
+      }
+      closeModal('expModal');
+      renderAll();
+    }
+
+    function openLoanModal(idx = -1) {
+      editingLoan = idx;
+      const l = idx >= 0 ? loans[idx] : null;
+      document.getElementById('loanModalTitle').textContent = idx >= 0 ? 'Edit Loan' : 'Add Loan / EMI';
+      document.getElementById('lf-name').value = l ? l.name : '';
+      document.getElementById('lf-principal').value = l ? l.principal : '';
+      document.getElementById('lf-rate').value = l ? l.rate : '';
+      document.getElementById('lf-emi').value = l ? l.emi : '';
+      document.getElementById('lf-tenure').value = l ? l.tenure : '';
+      document.getElementById('lf-paid').value = l ? l.paid : 0;
+      document.getElementById('lf-due').value = l ? l.due : '';
+      document.getElementById('lf-bank').value = l ? l.bank : '';
+      openModal('loanModal');
+    }
+    function saveLoan() {
+      const name = document.getElementById('lf-name').value.trim();
+      const principal = parseFloat(document.getElementById('lf-principal').value);
+      const rate = parseFloat(document.getElementById('lf-rate').value);
+      const emi = parseFloat(document.getElementById('lf-emi').value);
+      const tenure = parseInt(document.getElementById('lf-tenure').value, 10);
+      const paid = parseInt(document.getElementById('lf-paid').value, 10) || 0;
+      const due = parseInt(document.getElementById('lf-due').value, 10);
+      const bank = document.getElementById('lf-bank').value.trim();
+
+      if (!name || isNaN(principal) || isNaN(emi)) { alert('Name, principal and EMI are required.'); return; }
+      
+      if (editingLoan >= 0) {
+        Object.assign(loans[editingLoan], { name, principal, rate, emi, tenure, paid, due, bank });
+      } else {
+        loans.push({ id: nextLoanId++, name, principal, rate, emi, tenure, paid, due, bank, closed: false });
+      }
+      closeModal('loanModal');
+      renderAll();
+    }
+
+    function openBudModal() {
+      document.getElementById('bf-cat').value = '';
+      document.getElementById('bf-bud').value = '';
+      openModal('budModal');
+    }
+    function saveBudCat() {
+      const cat = document.getElementById('bf-cat').value.trim();
+      const budget = parseFloat(document.getElementById('bf-bud').value);
+      if (!cat || isNaN(budget)) { alert('Please enter category and a valid budget amount.'); return; }
+      if (budgets.find(b => b.cat.toLowerCase() === cat.toLowerCase())) { alert('Category already exists!'); return; }
+      
+      budgets.push({ id: nextBudId++, cat, budget });
+      closeModal('budModal');
+      renderAll();
+    }
+
+    function openInvModal() {
+      document.getElementById('if-name').value = '';
+      document.getElementById('if-inv').value = '';
+      document.getElementById('if-cur').value = '';
+      document.getElementById('if-sip').value = 0;
+      openModal('invModal');
+    }
+    function saveInv() {
+      const name = document.getElementById('if-name').value.trim();
+      const type = document.getElementById('if-type').value;
+      const invested = parseFloat(document.getElementById('if-inv').value);
+      const current = parseFloat(document.getElementById('if-cur').value);
+      const sip = parseFloat(document.getElementById('if-sip').value) || 0;
+
+      if (!name || isNaN(invested)) { alert('Name and invested amount required.'); return; }
+      
+      investments.push({ id: nextInvId++, name, type, invested, current: current || invested, sip });
+      closeModal('invModal');
+      renderAll();
+    }
+
+    // ─── RENDER ALL ──────────────────────────────────────────────────────────────
+    function renderAll() {
+      renderSettings();
+      renderDash();
+      renderExpTable();
+      renderBudget();
+      renderLoans();
+      renderInvestments();
+      rebuildCharts();
+    }
+
+    // ─── SETTINGS ────────────────────────────────────────────────────────────────
+    function renderSettings() {
+      document.getElementById('set-salary').value = appSettings.salary;
+      document.getElementById('set-phases-container').innerHTML = appSettings.phases.map((p, i) => `
+        <div style="padding:14px; border:1px solid var(--border); border-radius:var(--r2); margin-bottom:12px; background:var(--surface2)">
+          <div class="grid3">
+            <div class="form-row"><label class="form-label">Phase Title</label><input type="text" class="form-input" value="${p.title}" onchange="appSettings.phases[${i}].title=this.value;renderAll()"></div>
+            <div class="form-row"><label class="form-label">Description / Assets</label><input type="text" class="form-input" value="${p.desc}" onchange="appSettings.phases[${i}].desc=this.value;renderAll()"></div>
+            <div class="form-row"><label class="form-label">Target Amount/mo (₹)</label><input type="number" class="form-input" value="${p.amount}" onchange="appSettings.phases[${i}].amount=+this.value;renderAll()"></div>
+          </div>
+          <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer; margin-top:5px;">
+            <input type="checkbox" ${p.active ? 'checked' : ''} onchange="appSettings.phases.forEach(x=>x.active=false); appSettings.phases[${i}].active=this.checked; renderAll()"> 
+            <strong>Set as Current Active Phase</strong>
+          </label>
+        </div>
+      `).join('');
+    }
+
+    // ─── DASHBOARD ───────────────────────────────────────────────────────────────
+    function renderDash() {
+      const exps = periodExps();
+      const totalExp = exps.reduce((s, e) => s + e.amount, 0);
+      const emi = totalEMI();
+      const sal = salary();
+      const surplus = sal - totalExp - emi - totalInvested();
+
+      document.getElementById('dash-kpis').innerHTML = `
+        <div class="kpi">
+          <div class="kpi-lbl">Salary</div>
+          <div class="kpi-val g">${inr(sal)}</div>
+          <div class="kpi-sub">Monthly config</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Expenses</div>
+          <div class="kpi-val r">${inr(totalExp)}</div>
+          <div class="kpi-sub">${exps.length} transactions</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Total EMIs</div>
+          <div class="kpi-val a">${inr(emi)}</div>
+          <div class="kpi-sub">${loans.filter(l => !l.closed).length} active loans</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Invested</div>
+          <div class="kpi-val b">${inr(totalInvested())}</div>
+          <div class="kpi-sub">Current value: ${inr(totalValue())}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Net Surplus</div>
+          <div class="kpi-val ${surplus >= 0 ? 'g' : 'r'}">${surplus >= 0 ? '+' : '-'}${inr(Math.abs(surplus))}</div>
+          <div class="kpi-sub">After all outflows</div>
+        </div>
+      `;
+
+      // Loans summary
+      const top4 = loans.filter(l => !l.closed).sort((a, b) => b.rate - a.rate).slice(0, 4);
+      document.getElementById('dashLoans').innerHTML = top4.map(l => `
+        <div class="ms">
+          <span class="ms-l">
+            <span class="dot" style="background:${l.rate > 20 ? 'var(--red)' : l.rate > 15 ? 'var(--amber)' : 'var(--green)'}"></span>
+            ${l.name} (${l.rate}%)
+          </span>
+          <span class="ms-v">${inr(l.principal)}</span>
+        </div>
+      `).join('');
+      document.getElementById('dashDebt').innerHTML = `<span style="font-size:11.5px;color:var(--text2)">Total debt: <strong style="color:var(--text)">${inr(totalDebt())}</strong></span>`;
+
+      // Investments
+      document.getElementById('dashInv').innerHTML = investments.map(i => {
+        const pl = i.current - i.invested;
+        const pos = pl >= 0;
+        return `
+          <div class="ms">
+            <span class="ms-l">
+              <span class="dot" style="background:${catColor(i.name)}"></span>${i.name}
+            </span>
+            <span class="ms-v" style="color:${pos ? 'var(--green)' : 'var(--red)'}">${pos ? '+' : '-'}${inr(Math.abs(pl))}</span>
+          </div>`;
+      }).join('');
+
+      // Upcoming EMIs
+      const upcoming = loans.filter(l => !l.closed).sort((a, b) => a.due - b.due).slice(0, 5);
+      const [curYear, curMonth] = curPeriod.split('-');
+      const mName = new Date(curPeriod+'-01').toLocaleString('en-US',{month:'short'});
+      
+      document.getElementById('dashRem').innerHTML = upcoming.map(l => {
+        const days = l.due - 10;
+        const cls = days <= 5 ? 'ur' : days <= 12 ? 'so' : 'ok';
+        const lbl = days <= 5 ? 'Urgent' : days <= 12 ? 'Soon' : 'OK';
+        const bc = days <= 5 ? 'br' : days <= 12 ? 'ba' : 'bg';
+        return `
+          <div class="rem ${cls}">
+            <div>
+              <div class="reminder-name" style="font-size:13px;font-weight:500">${l.name}</div>
+              <div style="font-size:11px;color:var(--text2)">Due: ${l.due} ${mName} · ${inr(l.emi)}</div>
+            </div>
+            <span class="badge ${bc}">${lbl}</span>
+          </div>`;
+      }).join('');
+    }
+
+    // ─── EXPENSES ────────────────────────────────────────────────────────────────
+    function renderExpTable() {
+      const cat = document.getElementById('ef-cat').value;
+      const q = (document.getElementById('ef-q').value || '').toLowerCase();
+      let rows = periodExps().filter(e => 
+        (!cat || e.cat === cat) && 
+        (!q || e.desc.toLowerCase().includes(q) || e.cat.toLowerCase().includes(q) || e.note.toLowerCase().includes(q))
+      );
+
+      const fcat = document.getElementById('ef-cat');
+      const prev = fcat.value;
+      fcat.innerHTML = '<option value="">All categories</option>' + allCats().map(c => `<option${c === prev ? ' selected' : ''}>${c}</option>`).join('');
+      
+      const total = rows.reduce((s, e) => s + e.amount, 0);
+      const largest = rows.reduce((mx, e) => e.amount > mx ? e.amount : mx, 0);
+
+      document.getElementById('exp-kpis').innerHTML = `
+        <div class="kpi"><div class="kpi-lbl">This Period</div><div class="kpi-val r">${inr(total)}</div><div class="kpi-sub">${rows.length} entries</div></div>
+        <div class="kpi"><div class="kpi-lbl">Largest</div><div class="kpi-val a">${inr(largest)}</div><div class="kpi-sub">Single expense</div></div>
+        <div class="kpi"><div class="kpi-lbl">Daily Avg</div><div class="kpi-val">${inr(Math.round(total / 31))}</div><div class="kpi-sub">Avg over month</div></div>
+        <div class="kpi"><div class="kpi-lbl">Fixed</div><div class="kpi-val b">${inr(rows.filter(e => e.type === 'Fixed').reduce((s, e) => s + e.amount, 0))}</div><div class="kpi-sub">Committed</div></div>
+        <div class="kpi"><div class="kpi-lbl">Variable</div><div class="kpi-val p">${inr(rows.filter(e => e.type === 'Variable').reduce((s, e) => s + e.amount, 0))}</div><div class="kpi-sub">Discretionary</div></div>
+      `;
+
+      document.getElementById('expBody').innerHTML = rows.map((e, i) => {
+        const idx = expenses.indexOf(e);
+        const ec = catColor(e.cat);
+        return `
+          <tr>
+            <td>${editMode ? `<input type="date" class="ecell-text" value="${e.date}" style="width:120px" onchange="expenses[${idx}].date=this.value;renderAll()">` : `<span style="font-family:var(--mono);font-size:12px">${e.date}</span>`}</td>
+            <td>${editMode ? `<input class="ecell-text" value="${e.desc}" style="min-width:140px" onchange="expenses[${idx}].desc=this.value;renderAll()">` : `${e.desc}`}</td>
+            <td>${editMode ? `<select class="ecell-text" onchange="expenses[${idx}].cat=this.value;renderAll()">${allCats().map(c => `<option${c === e.cat ? ' selected' : ''}>${c}</option>`).join('')}<option value="${e.cat}" selected>${e.cat}</option></select>` : `<span class="cat-pill" style="background:${ec}22;color:${ec}">${e.cat}</span>`}</td>
+            <td class="tr">${editMode ? `<input class="ecell" type="number" value="${e.amount}" onchange="expenses[${idx}].amount=+this.value;renderAll()">` : `<strong>${inr(e.amount)}</strong>`}</td>
+            <td>${editMode ? `<select class="ecell-text" onchange="expenses[${idx}].type=this.value;renderAll()"><option${e.type === 'Fixed' ? ' selected' : ''}>Fixed</option><option${e.type === 'Variable' ? ' selected' : ''}>Variable</option></select>` : `<span class="badge ${e.type === 'Fixed' ? 'bb' : 'ba'}">${e.type}</span>`}</td>
+            <td>${editMode ? `<input class="ecell-text" value="${e.note}" placeholder="Note…" onchange="expenses[${idx}].note=this.value;renderAll()">` : `<span style="color:var(--text2);font-size:12px">${e.note || '—'}</span>`}</td>
+            <td class="tc">
+              <div style="display:flex;gap:4px;justify-content:center">
+                <button class="btn btn-icon" title="Edit" onclick="openExpModal(${idx})" style="background:var(--blue-l);color:var(--blue)">✏️</button>
+                <button class="btn btn-icon btn-del" title="Delete" onclick="delExp(${idx})">🗑</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+      document.getElementById('expFoot').innerHTML = `<span style="font-size:12px;color:var(--text2)">Showing ${rows.length} entries · Total: <strong style="color:var(--text)">${inr(total)}</strong></span>`;
+    }
+
+    function delExp(idx) { if (confirm('Delete this expense?')) { expenses.splice(idx, 1); renderAll(); } }
+
+    // ─── BUDGET ──────────────────────────────────────────────────────────────────
+    function renderBudget() {
+      const isYearly = budgetView === 'yearly';
+      const curYear = curPeriod.substring(0,4);
+      
+      document.getElementById('budPlannerTitle').textContent = isYearly ? `${curYear} Yearly Budget Overview` : `Monthly Budget Planner`;
+      document.getElementById('bvaChartTitle').textContent = isYearly ? `${curYear} Budget vs Actual` : `Monthly Budget vs Actual`;
+      
+      const mult = isYearly ? 12 : 1;
+      const relevantExps = isYearly ? expenses.filter(e => e.date.startsWith(curYear)) : periodExps();
+
+      const actuals = {};
+      relevantExps.forEach(e => { actuals[e.cat] = (actuals[e.cat] || 0) + e.amount; });
+      
+      const totalBud = budgets.reduce((s, b) => s + (b.budget * mult), 0);
+      const totalAct = budgets.reduce((s, b) => s + (actuals[b.cat] || 0), 0);
+      const emi = totalEMI() * mult;
+      const totalSal = salary() * mult;
+
+      document.getElementById('bud-kpis').innerHTML = `
+        <div class="kpi"><div class="kpi-lbl">${isYearly?'Yearly':'Monthly'} Budget</div><div class="kpi-val">${inr(totalBud)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Actual Spend</div><div class="kpi-val ${totalAct > totalBud ? 'r' : 'g'}">${inr(totalAct)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Total EMIs</div><div class="kpi-val r">${inr(emi)}</div><div class="kpi-sub">${Math.round(emi / totalSal * 100)}% of salary</div></div>
+        <div class="kpi"><div class="kpi-lbl">Variance</div><div class="kpi-val ${totalAct > totalBud ? 'r' : 'g'}">${totalAct > totalBud ? '+' : '-'}${inr(Math.abs(totalAct - totalBud))}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Net Surplus</div><div class="kpi-val r">${inr(totalSal - totalAct - emi)}</div></div>
+      `;
+
+      document.getElementById('budBody').innerHTML = budgets.map((b, i) => {
+        const act = actuals[b.cat] || 0, planBud = b.budget * mult, v = act - planBud, p = Math.round(act / Math.max(planBud,1) * 100), over = v > 0;
+        const bc = catColor(b.cat);
+        return `
+          <tr>
+            <td><span class="dot" style="background:${bc};margin-right:6px"></span>${editMode ? `<input class="ecell-text" value="${b.cat}" onchange="budgets[${i}].cat=this.value;renderAll()">` : `${b.cat}`}</td>
+            <td class="tr">${editMode && !isYearly ? `<input class="ecell" type="number" value="${b.budget}" onchange="budgets[${i}].budget=+this.value;renderAll()">` : `${inr(planBud)}`}</td>
+            <td class="tr"><strong style="color:${over ? 'var(--red)' : 'var(--green)'}">${inr(act)}</strong></td>
+            <td class="tr"><span style="color:${over ? 'var(--red)' : 'var(--green)'}">₹${over ? '+' : ''}${(v).toLocaleString('en-IN')}</span></td>
+            <td><span class="badge ${over ? 'br' : 'bg'}">${over ? 'Over' : 'Under'}</span></td>
+            <td style="min-width:120px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <div class="pbar" style="flex:1"><div class="pfill ${p > 100 ? 'r' : p > 80 ? 'a' : 'g'}" style="width:${Math.min(p, 100)}%"></div></div>
+                <span style="font-size:11px;color:var(--text2)">${p}%</span>
+              </div>
+            </td>
+            <td class="tc"><button class="btn btn-icon btn-del" onclick="delBud(${i})">🗑</button></td>
+          </tr>`;
+      }).join('');
+
+      // BvA bars
+      document.getElementById('bvaBars').innerHTML = budgets.map(b => {
+        const act = actuals[b.cat] || 0, planBud = b.budget * mult, p = Math.round(act / Math.max(planBud,1) * 100), over = act > planBud;
+        return `
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:12.5px">
+              <span style="font-weight:500"><span class="dot" style="background:${catColor(b.cat)};margin-right:5px"></span>${b.cat}</span>
+              <span style="color:${over ? 'var(--red)' : 'var(--text2)'};">${inr(act)} / ${inr(planBud)} · ${p}%</span>
+            </div>
+            <div class="pbar"><div class="pfill ${p > 100 ? 'r' : p > 80 ? 'a' : 'g'}" style="width:${Math.min(p, 100)}%"></div></div>
+          </div>`;
+      }).join('');
+    }
+
+    function delBud(i) { if (confirm('Remove this budget category?')) { budgets.splice(i, 1); renderAll(); } }
+
+    // ─── LOANS ───────────────────────────────────────────────────────────────────
+    function loanTab(f, el) { 
+      loanFilter = f; 
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); 
+      el.classList.add('active'); 
+      renderLoans(); 
+    }
+
+    function renderLoans() {
+      const active = loans.filter(l => !l.closed);
+      const closed = loans.filter(l => l.closed);
+      const totalPrin = active.reduce((s, l) => s + l.principal, 0);
+      const totalInt = active.reduce((s, l) => s + (l.emi * l.tenure - l.principal), 0);
+      const avgRate = active.length ? active.reduce((s, l) => s + l.rate, 0) / active.length : 0;
+      const totalEmi2 = active.reduce((s, l) => s + l.emi, 0);
+      const maxTenure = active.reduce((mx, l) => Math.max(mx, l.tenure - l.paid), 0);
+      const today = new Date(curPeriod+'-10');
+
+      document.getElementById('loan-kpis').innerHTML = `
+        <div class="kpi"><div class="kpi-lbl">Total Principal</div><div class="kpi-val r">${inr(totalPrin)}</div><div class="kpi-sub">${active.length} active loans</div></div>
+        <div class="kpi"><div class="kpi-lbl">Total EMI/mo</div><div class="kpi-val r">${inr(totalEmi2)}</div><div class="kpi-sub">${Math.round(totalEmi2 / salary() * 100)}% of salary</div></div>
+        <div class="kpi"><div class="kpi-lbl">Est. Interest</div><div class="kpi-val a">${inr(totalInt)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Avg Rate</div><div class="kpi-val r">${avgRate.toFixed(2)}%</div></div>
+        <div class="kpi"><div class="kpi-lbl">Last Closure</div><div class="kpi-val b" style="font-size:15px">${maxTenure} mo left</div></div>
+      `;
+
+      const mName = new Date(curPeriod+'-01').toLocaleString('en-US',{month:'short'});
+      // EMI calendar
+      document.getElementById('emiCal').innerHTML = `<div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:5px;">` + 
+        active.sort((a, b) => a.due - b.due).map(l => {
+          const days = l.due - 10;
+          const cls = days <= 5 ? 'ur' : days <= 12 ? 'so' : 'ok';
+          const bc = days <= 5 ? 'br' : days <= 12 ? 'ba' : 'bg';
+          const rem = l.tenure - l.paid;
+          return `
+            <div class="rem ${cls}" style="flex-shrink:0; min-width:180px; margin-bottom:0;">
+              <div>
+                <div style="font-size:13px;font-weight:600">${l.name}</div>
+                <div style="font-size:11px;color:var(--text2)">Due ${l.due} ${mName} · ${inr(l.emi)} · ${rem}mo left</div>
+              </div>
+            </div>`;
+        }).join('') + `</div>`;
+
+      // Table
+      let show = loans;
+      if (loanFilter === 'active') show = active;
+      else if (loanFilter === 'closed') show = closed;
+
+      document.getElementById('loanBody').innerHTML = show.map((l, i) => {
+        const idx = loans.indexOf(l);
+        const pct2 = Math.round(l.paid / Math.max(l.tenure, 1) * 100);
+        const paidAmt = l.paid * l.emi;
+        const remAmt = Math.max(0, l.principal - paidAmt);
+        const remMo = Math.max(0, l.tenure - l.paid);
+        const closureDate = new Date(today); 
+        closureDate.setMonth(closureDate.getMonth() + remMo);
+        const closureStr = closureDate.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+        const priority = l.rate > 20 ? '🔴' : l.rate > 15 ? '🟠' : l.rate > 10 ? '🟡' : '🟢';
+        
+        return `
+          <tr class="${l.closed ? 'closed' : ''}">
+            <td class="tc">${i + 1}</td>
+            <td>
+              <strong>${editMode ? `<input class="ecell-text" value="${l.name}" onchange="loans[${idx}].name=this.value;renderAll()">` : `${l.name}`}</strong>
+              <div style="font-size:10.5px;color:var(--text3)">${editMode ? `<input class="ecell-text" style="font-size:10.5px; color:var(--text3)" value="${l.bank}" placeholder="Bank name" onchange="loans[${idx}].bank=this.value;renderAll()">` : (l.bank || '')}</div>
+            </td>
+            <td class="tr">${editMode ? `<input class="ecell" type="number" value="${l.principal}" onchange="loans[${idx}].principal=+this.value;renderAll()">` : `${inr(l.principal)}`}</td>
+            <td>${editMode ? `<input class="ecell" type="number" step="0.1" value="${l.rate}" style="text-align:center" onchange="loans[${idx}].rate=+this.value;renderAll()">` : `<span class="badge ${l.rate > 20 ? 'br' : l.rate > 15 ? 'ba' : 'bg'}">${l.rate}%</span>`}</td>
+            <td class="tr"><strong>${editMode ? `<input class="ecell" type="number" value="${l.emi}" onchange="loans[${idx}].emi=+this.value;renderAll()">` : `${inr(l.emi)}`}</strong></td>
+            <td class="tc">${editMode ? `<input class="ecell" type="number" value="${l.due}" style="width:40px" onchange="loans[${idx}].due=+this.value;renderAll()">` : `${l.due}`}</td>
+            <td class="tc">
+              <div style="font-size:12px;font-family:var(--mono)">${editMode ? `<input class="ecell" type="number" value="${l.paid}" style="width:35px" onchange="loans[${idx}].paid=+this.value;renderAll()">` : `${l.paid}`}/${editMode ? `<input class="ecell" type="number" value="${l.tenure}" style="width:35px" onchange="loans[${idx}].tenure=+this.value;renderAll()">` : `${l.tenure}`}</div>
+              <div style="font-size:10px;color:var(--text3)">${closureStr}</div>
+            </td>
+            <td style="min-width:120px">
+              <div class="tenure-bar"><div class="tenure-paid" style="width:${pct2}%"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px"><span>${pct2}% paid</span><span>${remMo}mo left</span></div>
+            </td>
+            <td class="tr" style="color:var(--green);font-family:var(--mono);font-weight:600">${inr(paidAmt)}</td>
+            <td class="tr" style="color:var(--red);font-family:var(--mono);font-weight:600">${inr(remAmt)}</td>
+            <td class="tc">${priority} <span onclick="toggleLoanClosed(${idx})" class="paid-badge ${l.closed ? 'paid' : 'unpaid'}" title="Toggle closed">${l.closed ? '✓ Closed' : 'Active'}</span></td>
+            <td class="tc">
+              <div style="display:flex;gap:3px;justify-content:center">
+                <button class="btn btn-icon" style="background:var(--blue-l);color:var(--blue)" onclick="openLoanModal(${idx})" title="Edit">✏️</button>
+                <button class="btn btn-icon" style="background:var(--amber-l);color:var(--amber)" onclick="payEMI(${idx})" title="Mark EMI paid">💰</button>
+                <button class="btn btn-icon btn-del" onclick="delLoan(${idx})" title="Delete">🗑</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('loanFoot').innerHTML = `<span style="font-size:12px;color:var(--text2)">Total debt: <strong style="color:var(--text)">${inr(totalPrin)}</strong> | Monthly burden: <strong style="color:var(--red)">${inr(totalEmi2)}</strong> | Closed: ${closed.length}</span>`;
+    }
+
+    function payEMI(idx) { 
+      loans[idx].paid = Math.min(loans[idx].paid + 1, loans[idx].tenure); 
+      if (loans[idx].paid >= loans[idx].tenure) loans[idx].closed = true; 
+      renderAll(); 
+    }
+    function toggleLoanClosed(idx) { loans[idx].closed = !loans[idx].closed; renderAll(); }
+    function delLoan(idx) { if (confirm('Delete this loan?')) { loans.splice(idx, 1); renderAll(); } }
+
+    // ─── INVESTMENTS ─────────────────────────────────────────────────────────────
+    function renderInvestments() {
+      const totInv = totalInvested(), totVal = totalValue(), totPL = totVal - totInv;
+      const monthlySIP = investments.reduce((s, i) => s + i.sip, 0);
+
+      document.getElementById('inv-kpis').innerHTML = `
+        <div class="kpi"><div class="kpi-lbl">Total Invested</div><div class="kpi-val b">${inr(totInv)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Current Value</div><div class="kpi-val g">${inr(totVal)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Total P&L</div><div class="kpi-val ${totPL >= 0 ? 'g' : 'r'}">${totPL >= 0 ? '+' : '-'}${inr(Math.abs(totPL))}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Monthly SIP</div><div class="kpi-val p">${inr(monthlySIP)}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Return</div><div class="kpi-val g">${totInv ? ((totPL / totInv) * 100).toFixed(1) + '%' : '0%'}</div></div>
+      `;
+
+      document.getElementById('invBody').innerHTML = investments.map((inv, i) => {
+        const pl = inv.current - inv.invested, pos = pl >= 0, retPct = inv.invested ? ((pl / inv.invested) * 100).toFixed(2) : 0;
+        const progW = Math.min(Math.abs(retPct) * 10, 100);
+        return `
+          <tr>
+            <td><strong>${editMode ? `<input class="ecell-text" value="${inv.name}" onchange="investments[${i}].name=this.value;renderAll()">` : `${inv.name}`}</strong></td>
+            <td>${editMode ? `<select class="ecell-text" onchange="investments[${i}].type=this.value;renderAll()"><option${inv.type==='Equity MF'?' selected':''}>Equity MF</option><option${inv.type==='Debt MF'?' selected':''}>Debt MF</option><option${inv.type==='Govt Scheme'?' selected':''}>Govt Scheme</option><option${inv.type==='Bank FD'?' selected':''}>Bank FD</option><option${inv.type==='Stocks'?' selected':''}>Stocks</option><option${inv.type==='Gold'?' selected':''}>Gold</option><option${inv.type==='Other'?' selected':''}>Other</option></select>` : `<span class="badge bb">${inv.type}</span>`}</td>
+            <td class="tr">${editMode ? `<input class="ecell" type="number" value="${inv.invested}" onchange="investments[${i}].invested=+this.value;renderAll()">` : `${inr(inv.invested)}`}</td>
+            <td class="tr">${editMode ? `<input class="ecell" type="number" value="${inv.current}" onchange="investments[${i}].current=+this.value;renderAll()">` : `<strong>${inr(inv.current)}</strong>`}</td>
+            <td class="tr"><span style="color:${pos ? 'var(--green)' : 'var(--red)'};font-weight:600">${pos ? '+' : '-'}${inr(Math.abs(pl))}</span></td>
+            <td class="tr"><span style="color:${pos ? 'var(--green)' : 'var(--red)'};font-weight:600">${pos ? '+' : ''}${retPct}%</span></td>
+            <td><div class="pbar" style="min-width:80px"><div class="pfill g" style="width:${progW}%"></div></div></td>
+            <td class="tc">
+              <div style="display:flex;gap:3px;justify-content:center">
+                <button class="btn btn-icon btn-del" onclick="delInv(${i})">🗑</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('invPhases').innerHTML = `
+        <div class="grid3">
+          ${appSettings.phases.map(p => `
+            <div style="padding:14px;border:${p.active ? '2px solid var(--green)' : '1px solid var(--border)'};border-radius:var(--r2);background:${p.active ? 'var(--green-l)' : 'var(--surface2)'}">
+              <div style="font-weight:600;color:${p.active ? 'var(--green)' : 'inherit'};margin-bottom:5px">${p.title}</div>
+              <div style="font-size:12.5px;color:var(--text2)">${p.desc}</div>
+              <div style="font-size:12px;margin-top:4px"><strong style="color:${p.active ? 'var(--green)' : 'inherit'}">₹${p.amount.toLocaleString('en-IN')}/mo</strong></div>
+            </div>
+          `).join('')}
+        </div>`;
+
+      document.getElementById('allocLeg').innerHTML = investments.map(i => 
+        `<span style="font-size:11.5px;color:var(--text2);display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:2px;background:${catColor(i.name)};display:inline-block"></span>${i.name}</span>`
+      ).join('');
+    }
+    function delInv(i) { if (confirm('Remove this investment?')) { investments.splice(i, 1); renderAll(); } }
+
+    // ─── CHARTS ──────────────────────────────────────────────────────────────────
+    let charts = {};
+    
+    function destroyChart(id) { 
+      if (charts[id]) { 
+        charts[id].destroy(); 
+        delete charts[id]; 
+      } 
+    }
+    
+    let chartTimeout;
+    function rebuildCharts() { 
+      clearTimeout(chartTimeout);
+      chartTimeout = setTimeout(buildCharts, 50); 
+    }
+
+    // Custom Plugin to display amounts natively on bars
+    const barLabelsPlugin = {
+      id: 'barLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const isHoriz = chart.options.indexAxis === 'y';
+        
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          if (meta.hidden) return;
+          meta.data.forEach((element, index) => {
+            const val = dataset.data[index];
+            if (!val || val === 0) return;
+            
+            ctx.fillStyle = dark ? '#f0ede6' : '#1a1917';
+            ctx.font = '600 10.5px "DM Mono"';
+            const txt = '₹' + (val >= 1000 ? (val/1000).toFixed(1).replace('.0','')+'k' : val);
+            const pos = element.tooltipPosition();
+            
+            if (isHoriz) {
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(txt, pos.x + 6, pos.y);
+            } else {
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(txt, pos.x, pos.y - 6);
+            }
+          });
+        });
+      }
+    };
+
+    Chart.register(barLabelsPlugin);
+
+    function buildCharts() {
+      const txt = dark ? '#9e9c96' : '#6b6860', grid = dark ? '#2e2d2a' : '#e5e3dc';
+      const opts = (extra = {}) => ({
+        responsive: true, maintainAspectRatio: false, 
+        layout: { padding: { top: 20, right: 30 } }, // Added global padding so labels over bars are never cut off
+        plugins: { legend: { display: false }, ...(extra.plugins || {}) }, 
+        scales: { x: { ticks: { color: txt }, grid: { color: grid } }, y: { ticks: { color: txt }, grid: { color: grid } } }, 
+        ...extra
+      });
+
+      const dynamicPeriods = getDynamicMonths();
+
+      // Cashflow
+      destroyChart('cfChart');
+      if (document.getElementById('cfChart') && document.getElementById('cfChart').offsetParent !== null) {
+        
+        const expenseTrend = dynamicPeriods.vals.map(m => expenses.filter(e => e.date.startsWith(m)).reduce((s,e)=>s+e.amount, 0));
+
+        charts.cfChart = new Chart(document.getElementById('cfChart'), {
+          type: 'bar',
+          data: {
+            labels: dynamicPeriods.labels,
+            datasets: [
+              { label: 'Income', data: dynamicPeriods.vals.map(() => salary()), backgroundColor: '#2d6a4f', borderRadius: 4 },
+              { label: 'Expenses', data: expenseTrend, backgroundColor: '#e76f51', borderRadius: 4 },
+              { label: 'EMIs', data: dynamicPeriods.vals.map(() => totalEMI()), backgroundColor: '#c0392b55', borderRadius: 4, borderColor: '#c0392b', borderWidth: 1 },
+            ]
+          },
+          options: { ...opts({ plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.dataset.label + ': ₹' + c.raw.toLocaleString('en-IN') } } } }), scales: { x: { ticks: { color: txt }, grid: { color: grid } }, y: { ticks: { color: txt, callback: v => '₹' + (v / 1000) + 'k' }, grid: { color: grid } } } }
+        });
+      }
+
+      // Donut
+      const catTotals = {}; 
+      periodExps().forEach(e => { catTotals[e.cat] = (catTotals[e.cat] || 0) + e.amount; });
+      const catLabels = Object.keys(catTotals), catVals = Object.values(catTotals), catBg = catLabels.map(catColor);
+      
+      destroyChart('doChart');
+      if (document.getElementById('doChart') && document.getElementById('doChart').offsetParent !== null) {
+        charts.doChart = new Chart(document.getElementById('doChart'), {
+          type: 'doughnut',
+          data: { labels: catLabels, datasets: [{ data: catVals, backgroundColor: catBg, borderWidth: 0, hoverOffset: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { barLabels: false, legend: { display: false }, tooltip: { callbacks: { label: c => '₹' + c.raw.toLocaleString('en-IN') } } } }
+        });
+        document.getElementById('doLegend').innerHTML = catLabels.map((c, i) => `<span style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:2px;background:${catBg[i]};display:inline-block"></span>${c} ${inr(catVals[i])}</span>`).join('');
+      }
+
+      // Cat bar
+      destroyChart('catChart');
+      if (document.getElementById('catChart') && document.getElementById('catChart').offsetParent !== null) {
+        charts.catChart = new Chart(document.getElementById('catChart'), {
+          type: 'bar',
+          data: { labels: catLabels, datasets: [{ data: catVals, backgroundColor: catBg, borderRadius: 4 }] },
+          options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => '₹' + c.raw.toLocaleString('en-IN') } } }, scales: { x: { ticks: { color: txt, callback: v => '₹' + (v / 1000) + 'k' }, grid: { color: grid }, max: Math.max(...catVals)*1.2 }, y: { ticks: { color: txt }, grid: { display: false } } } }
+        });
+      }
+
+      // Trend
+      destroyChart('trendChart');
+      if (document.getElementById('trendChart') && document.getElementById('trendChart').offsetParent !== null) {
+        const expenseTrend = dynamicPeriods.vals.map(m => expenses.filter(e => e.date.startsWith(m)).reduce((s,e)=>s+e.amount, 0));
+        charts.trendChart = new Chart(document.getElementById('trendChart'), {
+          type: 'line',
+          data: { labels: dynamicPeriods.labels, datasets: [{ label: 'Expenses', data: expenseTrend, borderColor: '#e76f51', backgroundColor: '#e76f5118', fill: true, tension: .4, pointBackgroundColor: '#e76f51', pointRadius: 4 }] },
+          options: { ...opts({ plugins: { barLabels: false, legend: { display: false } } }), scales: { x: { ticks: { color: txt }, grid: { color: grid } }, y: { ticks: { color: txt, callback: v => '₹' + (v / 1000) + 'k' }, grid: { color: grid } } } }
+        });
+      }
+
+      // BvA
+      const isYearly = budgetView === 'yearly';
+      const mult = isYearly ? 12 : 1;
+      const relevantExps = isYearly ? expenses.filter(e => e.date.startsWith(curPeriod.substring(0,4))) : periodExps();
+      const act2 = {}; 
+      relevantExps.forEach(e => { act2[e.cat] = (act2[e.cat] || 0) + e.amount; });
+      
+      destroyChart('bvaChart');
+      if (document.getElementById('bvaChart') && document.getElementById('bvaChart').offsetParent !== null) {
+        charts.bvaChart = new Chart(document.getElementById('bvaChart'), {
+          type: 'bar',
+          data: {
+            labels: budgets.map(b => b.cat),
+            datasets: [
+              { label: 'Budget', data: budgets.map(b => b.budget * mult), backgroundColor: '#2d6a4f88', borderRadius: 3 },
+              { label: 'Actual', data: budgets.map(b => act2[b.cat] || 0), backgroundColor: '#e76f5188', borderRadius: 3 },
+            ]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: txt, font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: txt, callback: v => '₹' + (v / 1000) + 'k' }, grid: { color: grid } } } }
+        });
+      }
+
+      // PI chart
+      const sortedLoans = [...loans.filter(l => !l.closed)].sort((a, b) => b.rate - a.rate);
+      destroyChart('piChart');
+      if (document.getElementById('piChart') && document.getElementById('piChart').offsetParent !== null) {
+        charts.piChart = new Chart(document.getElementById('piChart'), {
+          type: 'bar',
+          data: {
+            labels: sortedLoans.map(l => l.name),
+            datasets: [
+              { label: 'Principal', data: sortedLoans.map(l => l.principal), backgroundColor: '#2563eb88' },
+              { label: 'Interest', data: sortedLoans.map(l => Math.max(0, l.emi * l.tenure - l.principal)), backgroundColor: '#c0392b88' },
+            ]
+          },
+          options: { ...opts({ indexAxis: 'y', plugins: { legend: { display: false } } }), scales: { x: { stacked: true, ticks: { color: txt, callback: v => '₹' + (v / 1000) + 'k' }, grid: { color: grid } }, y: { stacked: true, ticks: { color: txt, font: { size: 10 } }, grid: { display: false } } } }
+        });
+      }
+
+      // Debt Trend (Loans Projection)
+      destroyChart('debtTrendChart');
+      if (document.getElementById('debtTrendChart') && document.getElementById('debtTrendChart').offsetParent !== null) {
+        const labels = [];
+        const data = [];
+        let [cy, cm] = curPeriod.split('-').map(Number);
+        
+        if (debtView === 'monthly') {
+          for (let i = 0; i <= 11; i++) {
+            let d = new Date(cy, cm - 1 + i, 1);
+            labels.push(d.toLocaleString('en-US', {month:'short'}) + " '" + d.getFullYear().toString().substr(-2));
+            
+            let remDebt = 0;
+            loans.filter(l => !l.closed).forEach(l => {
+              let projectedPaid = Math.min(l.tenure, l.paid + i);
+              let rem = Math.max(0, l.principal - (projectedPaid * l.emi));
+              remDebt += rem;
+            });
+            data.push(remDebt);
+          }
+        } else {
+           for (let i = 0; i <= 5; i++) {
+              labels.push(cy + i);
+              let remDebt = 0;
+              loans.filter(l => !l.closed).forEach(l => {
+                let projectedPaid = Math.min(l.tenure, l.paid + (i * 12));
+                let rem = Math.max(0, l.principal - (projectedPaid * l.emi));
+                remDebt += rem;
+              });
+              data.push(remDebt);
+           }
+        }
+
+        charts.debtTrendChart = new Chart(document.getElementById('debtTrendChart'), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Remaining Debt', data: data,
+              borderColor: '#c0392b', backgroundColor: '#c0392b15', fill: true, tension: .4, pointRadius: 4, pointBackgroundColor: '#c0392b'
+            }]
+          },
+          options: { ...opts({ plugins: { barLabels: false, legend: { display: false } } }), scales: { x: { ticks: { color: txt }, grid: { color: grid } }, y: { ticks: { color: txt, callback: v => '₹' + (v / 1000) + 'k' }, grid: { color: grid } } } }
+        });
+      }
+
+      // Portfolio
+      const valD = [];
+      let cumV = 0;
+      for (let m = 0; m < 5; m++) {
+        investments.forEach(i => { cumV += i.sip * (1 + 0.01); });
+        valD.push(Math.round(cumV));
+      }
+      destroyChart('portChart');
+      if (document.getElementById('portChart') && document.getElementById('portChart').offsetParent !== null) {
+        charts.portChart = new Chart(document.getElementById('portChart'), {
+          type: 'line',
+          data: {
+            labels: dynamicPeriods.labels,
+            datasets: [
+              { label: 'Value Growth (Est)', data: valD, borderColor: '#2d6a4f', backgroundColor: '#2d6a4f15', fill: true, tension: .4, pointRadius: 4, pointBackgroundColor: '#2d6a4f' },
+            ]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { barLabels: false, legend: { display: false } }, scales: { x: { ticks: { color: txt }, grid: { color: grid } }, y: { ticks: { color: txt, callback: v => '₹' + (v / 1000) + 'k' }, grid: { color: grid } } } }
+        });
+      }
+
+      // Alloc
+      destroyChart('allocChart');
+      if (document.getElementById('allocChart') && document.getElementById('allocChart').offsetParent !== null) {
+        charts.allocChart = new Chart(document.getElementById('allocChart'), {
+          type: 'doughnut',
+          data: { labels: investments.map(i => i.name), datasets: [{ data: investments.map(i => i.invested), backgroundColor: investments.map(i => catColor(i.name)), borderWidth: 0, hoverOffset: 6 }] },
+          options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { barLabels: false, legend: { display: false } } }
+        });
+      }
+    }
+
+    // ─── EXPORT ──────────────────────────────────────────────────────────────────
+    function exportXL() {
+      if(typeof XLSX === 'undefined') {
+        alert("Excel export library is currently loading. Please try again in a moment.");
+        return;
+      }
+      
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Date', 'Desc', 'Category', 'Amount', 'Type', 'Note'], ...expenses.map(e => [e.date, e.desc, e.cat, e.amount, e.type, e.note])]), 'Expenses');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Category', 'Budget', 'Actual'], ...budgets.map(b => [b.cat, b.budget, periodExps().filter(e => e.cat === b.cat).reduce((s, e) => s + e.amount, 0)])]), 'Budget');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Name', 'Principal', 'Rate%', 'EMI', 'Tenure', 'Paid', 'Remaining', 'Bank'], ...loans.map(l => [l.name, l.principal, l.rate, l.emi, l.tenure, l.paid, Math.max(0, l.tenure - l.paid), l.bank])]), 'Loans');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Name', 'Type', 'Invested', 'Value', 'P&L', 'SIP'], ...investments.map(i => [i.name, i.type, i.invested, i.current, i.current - i.invested, i.sip])]), 'Investments');
+      XLSX.writeFile(wb, 'FinTrack_Pro.xlsx');
+    }
+
+    // ─── INIT ─────────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      buildCatChips();
+      renderAll();
+      
+      // Rebuild charts on window resize to ensure canvas elements fit properly
+      window.addEventListener('resize', rebuildCharts);
+    });
+  </script>
+</body>
+</html>
